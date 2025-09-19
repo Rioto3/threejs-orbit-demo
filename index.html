@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Orbit with Full Controls</title>
+  <style>
+    body { margin:0; overflow:hidden; background:#000; }
+    #ui {
+      position: absolute; top: 10px; left: 10px; color: white;
+      font-family: sans-serif; font-size: 14px;
+      background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px;
+      max-height: 95vh; overflow-y: auto;
+    }
+    label { display: block; margin: 5px 0; }
+  </style>
+</head>
+<body>
+<div id="ui">
+  <label>
+    公転速度:
+    <input id="speed" type="range" min="0" max="0.02" step="0.0001" value="0.003">
+  </label>
+  <label>
+    視点X (左右):
+    <input id="camX" type="range" min="-20" max="20" step="0.1" value="0">
+  </label>
+  <label>
+    視点Y (高さ):
+    <input id="camY" type="range" min="-20" max="20" step="0.1" value="0">
+  </label>
+  <label>
+    視点Z (距離):
+    <input id="camZ" type="range" min="5" max="50" step="0.1" value="15">
+  </label>
+  <label>
+    リング傾きX:
+    <input id="rotX" type="range" min="-1.57" max="1.57" step="0.01" value="-0.7">
+  </label>
+  <label>
+    リング傾きY:
+    <input id="rotY" type="range" min="-1.57" max="1.57" step="0.01" value="-0.3">
+  </label>
+  <label>
+    コイン傾き (tilt):
+    <input id="tilt" type="range" min="-1.57" max="1.57" step="0.01" value="0.3">
+  </label>
+</div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.177/build/three.module.js";
+
+const scene = new THREE.Scene();
+
+// カメラ
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(0, 0, 15);
+camera.lookAt(0, 0, 0);
+
+// レンダラー
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// 画像ファイル (3x 系)
+const textures = [
+  "circle-lime@3x.webp",
+  "circle-orange@3x.webp",
+  "circle-red@3x.webp",
+  "circle-purple@3x.webp",
+  "circle-gray@3x.webp",
+  "circle-blue@3x.webp",
+  "circle-green@3x.webp"
+];
+
+const group = new THREE.Group();
+scene.add(group);
+
+const radius = 8;
+const count = 14;
+const loader = new THREE.TextureLoader();
+const meshes = [];
+
+for (let i = 0; i < count; i++) {
+  const tex = loader.load(textures[i % textures.length]);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent:true });
+  const geo = new THREE.CircleGeometry(1, 64);
+  const mesh = new THREE.Mesh(geo, mat);
+
+  const angle = (i / count) * Math.PI * 2;
+  mesh.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, 0);
+  group.add(mesh);
+  meshes.push(mesh);
+}
+
+// 初期傾き
+group.rotation.x = -0.7;
+group.rotation.y = -0.3;
+
+// UI参照
+const ui = {
+  speed: document.getElementById("speed"),
+  camX: document.getElementById("camX"),
+  camY: document.getElementById("camY"),
+  camZ: document.getElementById("camZ"),
+  rotX: document.getElementById("rotX"),
+  rotY: document.getElementById("rotY"),
+  tilt: document.getElementById("tilt")
+};
+
+function animate(){
+  requestAnimationFrame(animate);
+
+  // 公転速度
+  group.rotation.z += parseFloat(ui.speed.value);
+
+  // カメラ位置
+  camera.position.x = parseFloat(ui.camX.value);
+  camera.position.y = parseFloat(ui.camY.value);
+  camera.position.z = parseFloat(ui.camZ.value);
+  camera.lookAt(0, 0, 0);
+
+  // リング傾き
+  group.rotation.x = parseFloat(ui.rotX.value);
+  group.rotation.y = parseFloat(ui.rotY.value);
+
+  // コイン傾き
+  const tilt = parseFloat(ui.tilt.value);
+  meshes.forEach((mesh, i) => {
+    const angle = (i / count) * Math.PI * 2;
+    const dir = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0).normalize();
+    mesh.setRotationFromAxisAngle(dir, tilt);
+  });
+
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener("resize", ()=>{
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
